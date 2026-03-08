@@ -1,7 +1,7 @@
-const express = require('express');
-const bcrypt  = require('bcryptjs');
-const db      = require('../db');
-const router  = express.Router();
+const express  = require('express');
+const bcrypt   = require('bcryptjs');
+const db       = require('../db');
+const router   = express.Router();
 
 router.post('/register', async (req, res) => {
   const { name, email, password } = req.body;
@@ -15,11 +15,15 @@ router.post('/register', async (req, res) => {
     );
     req.session.userId = result.insertId;
     req.session.name   = name;
-    res.json({ ok: true, userId: result.insertId, name });
+    req.session.save((err) => {
+      if (err) return res.status(500).json({ error: 'Session error: ' + err.message });
+      res.json({ ok: true, userId: result.insertId, name });
+    });
   } catch (err) {
+    console.error('REGISTER ERROR:', err.message);
     if (err.code === 'ER_DUP_ENTRY')
       return res.status(409).json({ error: 'Email already registered.' });
-    res.status(500).json({ error: 'Server error.' });
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -36,9 +40,13 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials.' });
     req.session.userId = rows[0].user_id;
     req.session.name   = rows[0].name;
-    res.json({ ok: true, userId: rows[0].user_id, name: rows[0].name });
+    req.session.save((err) => {
+      if (err) return res.status(500).json({ error: 'Session error: ' + err.message });
+      res.json({ ok: true, userId: rows[0].user_id, name: rows[0].name });
+    });
   } catch (err) {
-    res.status(500).json({ error: 'Server error.' });
+    console.error('LOGIN ERROR:', err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 
