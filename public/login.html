@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TrackWise - Login</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  :root{
+    --bg:#0b0d14;--surface:#12151f;--surface2:#1a1e2e;--border:#222638;
+    --teal:#00c9a7;--text:#e2e8f0;--text-muted:#64748b;--red:#ef4444;
+    --fd:'Syne',sans-serif;--fm:'DM Mono',monospace;
+  }
+  body{background:var(--bg);color:var(--text);font-family:var(--fm);min-height:100vh;display:flex;align-items:center;justify-content:center;}
+  .wrap{width:400px;max-width:95vw;}
+  .logo{text-align:center;margin-bottom:36px;}
+  .logo-text{font-family:var(--fd);font-size:28px;font-weight:800;color:#fff;}
+  .logo-text span{color:var(--teal);}
+  .logo-sub{font-size:11px;color:var(--text-muted);letter-spacing:2px;text-transform:uppercase;margin-top:4px;}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;}
+  .tabs{display:flex;border-bottom:1px solid var(--border);}
+  .tab{flex:1;padding:14px;text-align:center;font-size:12px;font-weight:500;cursor:pointer;color:var(--text-muted);transition:all .15s;letter-spacing:.5px;}
+  .tab.active{color:var(--teal);border-bottom:2px solid var(--teal);margin-bottom:-1px;}
+  .form-wrap{padding:28px;}
+  .form-group{display:flex;flex-direction:column;gap:6px;margin-bottom:16px;}
+  .form-label{font-size:10px;color:var(--text-muted);letter-spacing:1.5px;text-transform:uppercase;}
+  .form-input{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:11px 14px;color:var(--text);font-family:var(--fm);font-size:13px;outline:none;transition:border-color .15s;}
+  .form-input:focus{border-color:var(--teal);}
+  .btn{width:100%;padding:12px;border-radius:8px;border:none;background:var(--teal);color:#0b0d14;font-family:var(--fm);font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;letter-spacing:.5px;margin-top:4px;}
+  .btn:hover{background:#00e0bb;}
+  .err{font-size:11px;color:var(--red);margin-top:10px;text-align:center;min-height:16px;}
+  .panel{display:none;}.panel.active{display:block;}
+  .demo-hint{text-align:center;margin-top:16px;font-size:11px;color:var(--text-muted);}
+  .demo-hint span{color:var(--teal);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">
+    <div class="logo-text">Track<span>Wise</span></div>
+    <div class="logo-sub">Expense Analytics Platform</div>
+  </div>
+  <div class="card">
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('login')">Login</div>
+      <div class="tab" onclick="switchTab('register')">Register</div>
+    </div>
+    <div class="form-wrap panel active" id="panel-login">
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" class="form-input" id="l-email" placeholder="you@example.com">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" class="form-input" id="l-pass" placeholder="Enter password" onkeydown="if(event.key==='Enter')login()">
+      </div>
+      <button class="btn" onclick="login()">Login</button>
+      <div class="err" id="l-err"></div>
+      <div class="demo-hint">Demo: <span>arjun@example.com</span> / <span>password123</span></div>
+    </div>
+    <div class="form-wrap panel" id="panel-register">
+      <div class="form-group">
+        <label class="form-label">Full Name</label>
+        <input type="text" class="form-input" id="r-name" placeholder="Your Name">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" class="form-input" id="r-email" placeholder="you@example.com">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" class="form-input" id="r-pass" placeholder="Min 6 characters">
+      </div>
+      <button class="btn" onclick="register()">Create Account</button>
+      <div class="err" id="r-err"></div>
+    </div>
+  </div>
+</div>
+<script>
+function switchTab(t){
+  document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',(i===0&&t==='login')||(i===1&&t==='register')));
+  document.getElementById('panel-login').classList.toggle('active',t==='login');
+  document.getElementById('panel-register').classList.toggle('active',t==='register');
+}
+async function login(){
+  const email=document.getElementById('l-email').value;
+  const password=document.getElementById('l-pass').value;
+  const err=document.getElementById('l-err');
+  err.textContent='';
+  try{
+    const r=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({email,password})});
+    const d=await r.json();
+    if(!r.ok)return err.textContent=d.error;
+    window.location.href='/';
+  }catch(e){err.textContent='Connection error. Is the server running?';}
+}
+async function register(){
+  const name=document.getElementById('r-name').value;
+  const email=document.getElementById('r-email').value;
+  const password=document.getElementById('r-pass').value;
+  const err=document.getElementById('r-err');
+  err.textContent='';
+  try{
+    const r=await fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({name,email,password})});
+    const d=await r.json();
+    if(!r.ok)return err.textContent=d.error;
+    window.location.href='/';
+  }catch(e){err.textContent='Connection error. Is the server running?';}
+}
+fetch('/api/auth/me',{credentials:'include'}).then(r=>r.json()).then(d=>{if(d.loggedIn)window.location.href='/';});
+</script>
+</body>
+</html>

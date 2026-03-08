@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TrackWise - Expense Analytics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0b0d14;--surface:#12151f;--surface2:#1a1e2e;--border:#222638;
+  --teal:#00c9a7;--teal-dim:rgba(0,201,167,.12);
+  --amber:#f59e0b;--amber-dim:rgba(245,158,11,.12);
+  --red:#ef4444;--red-dim:rgba(239,68,68,.12);
+  --blue:#6366f1;--blue-dim:rgba(99,102,241,.12);
+  --text:#e2e8f0;--text-muted:#64748b;--text-dim:#94a3b8;
+  --fd:'Syne',sans-serif;--fm:'DM Mono',monospace;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--fm);overflow:hidden;}
+.app{display:flex;height:100vh;}
+
+/* Sidebar */
+.sidebar{width:220px;min-width:220px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:24px 0;overflow:hidden;}
+.logo{padding:0 20px 28px;border-bottom:1px solid var(--border);margin-bottom:16px;}
+.logo-text{font-family:var(--fd);font-size:20px;font-weight:800;color:#fff;letter-spacing:-.5px;}
+.logo-text span{color:var(--teal);}
+.logo-sub{font-size:10px;color:var(--text-muted);letter-spacing:1.5px;text-transform:uppercase;margin-top:2px;}
+.nav-section{padding:0 12px;margin-bottom:4px;}
+.nav-label{font-size:9px;color:var(--text-muted);letter-spacing:2px;text-transform:uppercase;padding:8px 8px 6px;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;font-size:13px;color:var(--text-muted);transition:all .15s;position:relative;letter-spacing:.2px;}
+.nav-item:hover{background:var(--surface2);color:var(--text-dim);}
+.nav-item.active{background:var(--teal-dim);color:var(--teal);font-weight:500;}
+.nav-item.active::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:20px;background:var(--teal);border-radius:0 2px 2px 0;}
+.nav-icon{font-size:15px;width:18px;text-align:center;}
+.sidebar-footer{margin-top:auto;padding:16px 20px;border-top:1px solid var(--border);}
+.user-chip{display:flex;align-items:center;gap:10px;}
+.avatar{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--teal),var(--blue));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;font-family:var(--fd);}
+.user-name{font-size:12px;color:var(--text);font-weight:500;}
+.user-sub{font-size:10px;color:var(--text-muted);cursor:pointer;}
+.user-sub:hover{color:var(--red);}
+
+/* Main */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.topbar{padding:16px 28px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--surface);flex-shrink:0;}
+.page-title{font-family:var(--fd);font-size:18px;font-weight:700;color:#fff;}
+.page-sub{font-size:11px;color:var(--text-muted);margin-top:1px;}
+.topbar-actions{display:flex;gap:10px;align-items:center;}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-family:var(--fm);font-size:12px;font-weight:500;cursor:pointer;border:none;transition:all .15s;letter-spacing:.3px;}
+.btn-primary{background:var(--teal);color:#0b0d14;}
+.btn-primary:hover{background:#00e0bb;transform:translateY(-1px);}
+.btn-ghost{background:transparent;color:var(--text-dim);border:1px solid var(--border);}
+.btn-ghost:hover{border-color:var(--teal);color:var(--teal);}
+.btn-sm{padding:5px 11px;font-size:11px;}
+.btn-danger{background:var(--red-dim);color:var(--red);border:1px solid transparent;}
+.btn-danger:hover{border-color:var(--red);}
+.content{flex:1;overflow-y:auto;padding:24px 28px;scrollbar-width:thin;scrollbar-color:var(--border) transparent;}
+.content::-webkit-scrollbar{width:4px;}
+.content::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+
+/* Views */
+.view{display:none;}
+.view.active{display:block;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.view.active>*{animation:fadeIn .25s ease both;}
+.view.active>*:nth-child(2){animation-delay:.05s;}
+.view.active>*:nth-child(3){animation-delay:.1s;}
+.view.active>*:nth-child(4){animation-delay:.15s;}
+
+/* Stat cards */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:22px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;position:relative;overflow:hidden;transition:border-color .2s;}
+.stat-card:hover{border-color:var(--teal);}
+.stat-card::after{content:'';position:absolute;top:0;right:0;bottom:0;width:3px;border-radius:0 12px 12px 0;}
+.stat-card.teal::after{background:var(--teal);}
+.stat-card.amber::after{background:var(--amber);}
+.stat-card.red::after{background:var(--red);}
+.stat-card.blue::after{background:var(--blue);}
+.stat-label{font-size:10px;color:var(--text-muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px;}
+.stat-value{font-family:var(--fd);font-size:26px;font-weight:800;color:#fff;letter-spacing:-1px;line-height:1;}
+.stat-meta{font-size:11px;margin-top:8px;display:flex;align-items:center;gap:4px;}
+.up{color:var(--teal);}.down{color:var(--red);}.neutral{color:var(--text-muted);}
+
+/* Cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.card-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.card-title{font-family:var(--fd);font-size:13px;font-weight:700;color:#fff;}
+.card-meta{font-size:10px;color:var(--text-muted);}
+.card-body{padding:16px 20px;}
+.chart-wrap{position:relative;height:220px;}
+.charts-row{display:grid;grid-template-columns:1fr 340px;gap:16px;margin-bottom:22px;}
+.bottom-row{display:grid;grid-template-columns:1fr 340px;gap:16px;}
+
+/* Budget */
+.budget-info{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;}
+.budget-label{font-size:12px;color:var(--text-dim);}
+.budget-amounts{font-size:12px;color:var(--text-muted);}
+.budget-amounts strong{color:var(--text);font-weight:500;}
+.progress-bg{background:var(--surface2);border-radius:4px;height:8px;overflow:hidden;}
+.progress-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--teal),#00a38a);transition:width .8s cubic-bezier(.4,0,.2,1);}
+.progress-fill.warn{background:linear-gradient(90deg,var(--amber),#d97706);}
+.progress-fill.danger{background:linear-gradient(90deg,var(--red),#dc2626);}
+.budget-alert{display:none;align-items:center;gap:8px;background:var(--red-dim);border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--red);margin-top:10px;}
+.budget-alert.show{display:flex;}
+
+/* Transactions */
+.tx-list{display:flex;flex-direction:column;gap:8px;}
+.tx-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:8px;background:var(--surface2);transition:background .15s;}
+.tx-item:hover{background:#1f2438;}
+.tx-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;font-weight:600;font-family:var(--fd);}
+.cat-food{background:rgba(52,211,153,.15);color:#34d399;}
+.cat-transport{background:rgba(99,102,241,.15);color:#818cf8;}
+.cat-shopping{background:rgba(251,191,36,.15);color:#fbbf24;}
+.cat-bills{background:rgba(239,68,68,.15);color:#f87171;}
+.cat-education{background:rgba(14,165,233,.15);color:#38bdf8;}
+.cat-health{background:rgba(168,85,247,.15);color:#c084fc;}
+.tx-info{flex:1;min-width:0;}
+.tx-desc{font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tx-cat{font-size:10px;color:var(--text-muted);margin-top:1px;}
+.tx-right{text-align:right;flex-shrink:0;}
+.tx-amount{font-size:13px;font-weight:500;color:var(--text);font-family:var(--fd);}
+.tx-date{font-size:10px;color:var(--text-muted);margin-top:1px;}
+
+/* Insights */
+.insights-list{display:flex;flex-direction:column;gap:10px;}
+.insight-item{display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);font-size:12px;color:var(--text-dim);transition:border-color .2s;}
+.insight-item:hover{border-color:var(--teal);}
+.insight-icon{font-size:16px;margin-top:1px;flex-shrink:0;}
+.insight-text strong{display:block;color:var(--text);font-size:12px;margin-bottom:2px;font-family:var(--fd);}
+
+/* Expense table */
+.expenses-toolbar{display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap;}
+.search-box{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:7px 14px;flex:1;min-width:200px;transition:border-color .15s;}
+.search-box:focus-within{border-color:var(--teal);}
+.search-box input{background:transparent;border:none;outline:none;color:var(--text);font-family:var(--fm);font-size:12px;flex:1;}
+.search-box input::placeholder{color:var(--text-muted);}
+.filter-select{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text-dim);font-family:var(--fm);font-size:12px;outline:none;cursor:pointer;transition:border-color .15s;}
+.filter-select:focus{border-color:var(--teal);}
+.expense-table{width:100%;border-collapse:separate;border-spacing:0;}
+.expense-table thead th{font-size:10px;color:var(--text-muted);letter-spacing:1.5px;text-transform:uppercase;padding:10px 14px;text-align:left;border-bottom:1px solid var(--border);font-weight:400;}
+.expense-table tbody td{padding:12px 14px;font-size:12px;color:var(--text-dim);border-bottom:1px solid rgba(34,38,56,.6);background:var(--surface);}
+.expense-table tbody tr:hover td{background:var(--surface2);}
+.cat-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:10px;letter-spacing:.5px;font-weight:500;}
+.badge-Food{background:rgba(52,211,153,.15);color:#34d399;}
+.badge-Transport{background:rgba(99,102,241,.15);color:#818cf8;}
+.badge-Shopping{background:rgba(251,191,36,.15);color:#fbbf24;}
+.badge-Bills{background:rgba(239,68,68,.15);color:#f87171;}
+.badge-Education{background:rgba(14,165,233,.15);color:#38bdf8;}
+.badge-Health{background:rgba(168,85,247,.15);color:#c084fc;}
+.amount-cell{font-family:var(--fd);font-size:13px;font-weight:600;color:var(--text);}
+.action-cell{display:flex;gap:6px;}
+.empty-state{padding:40px;text-align:center;color:var(--text-muted);font-size:13px;}
+
+/* Analytics */
+.analytics-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(11,13,20,.85);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:100;opacity:0;pointer-events:none;transition:opacity .2s;}
+.modal-overlay.open{opacity:1;pointer-events:all;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:460px;max-width:95vw;overflow:hidden;transform:translateY(12px) scale(.98);transition:transform .25s cubic-bezier(.4,0,.2,1);}
+.modal-overlay.open .modal{transform:translateY(0) scale(1);}
+.modal-header{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.modal-title{font-family:var(--fd);font-size:15px;font-weight:700;color:#fff;}
+.modal-close{width:28px;height:28px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);color:var(--text-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all .15s;}
+.modal-close:hover{border-color:var(--red);color:var(--red);}
+.modal-body{padding:24px;display:flex;flex-direction:column;gap:16px;}
+.form-group{display:flex;flex-direction:column;gap:6px;}
+.form-label{font-size:10px;color:var(--text-muted);letter-spacing:1.5px;text-transform:uppercase;}
+.form-input,.form-select{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-family:var(--fm);font-size:13px;outline:none;transition:border-color .15s;width:100%;}
+.form-input:focus,.form-select:focus{border-color:var(--teal);}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.modal-footer{padding:16px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;}
+
+/* Toast */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--surface);border:1px solid var(--teal);border-radius:10px;padding:12px 18px;font-size:12px;color:var(--teal);transform:translateY(80px);opacity:0;transition:all .3s cubic-bezier(.4,0,.2,1);z-index:200;max-width:300px;}
+.toast.show{transform:translateY(0);opacity:1;}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-text">Track<span>Wise</span></div>
+      <div class="logo-sub">Expense Analytics</div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Main</div>
+      <div class="nav-item active" onclick="showView('dashboard',this)"><span class="nav-icon">&#9670;</span> Dashboard</div>
+      <div class="nav-item" onclick="showView('expenses',this)"><span class="nav-icon">&#9776;</span> Expenses</div>
+      <div class="nav-item" onclick="showView('analytics',this)"><span class="nav-icon">&#9737;</span> Analytics</div>
+    </div>
+    <div class="nav-section" style="margin-top:8px">
+      <div class="nav-label">Account</div>
+      <div class="nav-item" onclick="showView('settings',this)"><span class="nav-icon">&#9881;</span> Settings</div>
+    </div>
+    <div class="sidebar-footer">
+      <div class="user-chip">
+        <div class="avatar" id="avatarEl">?</div>
+        <div>
+          <div class="user-name" id="userNameEl">Loading...</div>
+          <div class="user-sub" onclick="logout()">Logout</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <div class="page-title" id="pageTitle">Dashboard</div>
+        <div class="page-sub" id="pageSub">Financial Overview</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost btn-sm" onclick="exportCSV()">Export CSV</button>
+        <button class="btn btn-primary btn-sm" onclick="openModal()">+ Add Expense</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- DASHBOARD -->
+      <div class="view active" id="view-dashboard">
+        <div class="stats-grid">
+          <div class="stat-card teal">
+            <div class="stat-label">Total Spent This Month</div>
+            <div class="stat-value">Rs.<span id="statTotal">0</span></div>
+            <div class="stat-meta"><span id="statTotalSub" class="neutral">Loading...</span></div>
+          </div>
+          <div class="stat-card amber">
+            <div class="stat-label">Budget Remaining</div>
+            <div class="stat-value">Rs.<span id="statRemaining">0</span></div>
+            <div class="stat-meta"><span class="neutral" id="statBudgetSub">No budget set</span></div>
+          </div>
+          <div class="stat-card red">
+            <div class="stat-label">Top Category</div>
+            <div class="stat-value" style="font-size:18px" id="statTopCat">-</div>
+            <div class="stat-meta"><span class="neutral" id="statTopAmt"></span></div>
+          </div>
+          <div class="stat-card blue">
+            <div class="stat-label">Transactions</div>
+            <div class="stat-value"><span id="statCount">0</span></div>
+            <div class="stat-meta"><span class="neutral">this month</span></div>
+          </div>
+        </div>
+
+        <div class="charts-row">
+          <div class="card">
+            <div class="card-header"><span class="card-title">Monthly Spending Trend</span><span class="card-meta">Last 6 months</span></div>
+            <div class="card-body"><div class="chart-wrap"><canvas id="trendChart"></canvas></div></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">Category Breakdown</span><span class="card-meta">This Month</span></div>
+            <div class="card-body"><div class="chart-wrap"><canvas id="donutChart"></canvas></div></div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:22px">
+          <div class="card-header">
+            <span class="card-title">Monthly Budget</span>
+            <span class="card-meta" id="budgetPctLabel">-</span>
+          </div>
+          <div class="card-body">
+            <div class="budget-info">
+              <span class="budget-label" id="budgetMonthLabel">Set a budget in Settings</span>
+              <span class="budget-amounts">Spent: <strong id="budgetSpentDisplay">-</strong></span>
+            </div>
+            <div class="progress-bg"><div class="progress-fill" id="budgetBar" style="width:0%"></div></div>
+            <div class="budget-alert" id="budgetAlert"></div>
+          </div>
+        </div>
+
+        <div class="bottom-row">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Recent Transactions</span>
+              <span class="card-meta" style="cursor:pointer;color:var(--teal)" onclick="showView('expenses',document.querySelectorAll('.nav-item')[1])">View all</span>
+            </div>
+            <div class="card-body"><div class="tx-list" id="recentTxList"><div class="empty-state">Loading...</div></div></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">Smart Insights</span><span class="card-meta">Auto-generated</span></div>
+            <div class="card-body"><div class="insights-list" id="insightsList"><div class="empty-state">Loading...</div></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- EXPENSES -->
+      <div class="view" id="view-expenses">
+        <div class="expenses-toolbar">
+          <div class="search-box">
+            <span style="color:var(--text-muted)">&#128269;</span>
+            <input type="text" placeholder="Search expenses..." id="searchInput" oninput="filterTable()">
+          </div>
+          <select class="filter-select" id="catFilter" onchange="filterTable()">
+            <option value="">All Categories</option>
+            <option>Food</option><option>Transport</option><option>Shopping</option>
+            <option>Bills</option><option>Education</option><option>Health</option>
+          </select>
+        </div>
+        <div class="card">
+          <table class="expense-table">
+            <thead><tr><th>Date</th><th>Description</th><th>Category</th><th>Amount</th><th>Actions</th></tr></thead>
+            <tbody id="expTableBody"><tr><td colspan="5" class="empty-state">Loading...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ANALYTICS -->
+      <div class="view" id="view-analytics">
+        <div class="analytics-grid">
+          <div class="card">
+            <div class="card-header"><span class="card-title">Category Spend This Month</span></div>
+            <div class="card-body"><div class="chart-wrap"><canvas id="barChart"></canvas></div></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">3-Month Comparison</span></div>
+            <div class="card-body"><div class="chart-wrap"><canvas id="compareChart"></canvas></div></div>
+          </div>
+          <div class="card" style="grid-column:span 2">
+            <div class="card-header"><span class="card-title">Daily Spend Heatmap</span><span class="card-meta" id="heatmapLabel">This Month</span></div>
+            <div class="card-body">
+              <div id="heatmap" style="display:flex;flex-wrap:wrap;gap:5px;padding:4px 0 20px;min-height:50px"></div>
+              <div style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:10px;color:var(--text-muted)">
+                Low
+                <div style="width:12px;height:12px;border-radius:3px;background:#1a1e2e;border:1px solid var(--border)"></div>
+                <div style="width:12px;height:12px;border-radius:3px;background:rgba(0,201,167,.2)"></div>
+                <div style="width:12px;height:12px;border-radius:3px;background:rgba(0,201,167,.5)"></div>
+                <div style="width:12px;height:12px;border-radius:3px;background:var(--teal)"></div>
+                High
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div class="view" id="view-settings">
+        <div style="max-width:520px">
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-header"><span class="card-title">Monthly Budget</span></div>
+            <div class="card-body">
+              <div class="form-group">
+                <label class="form-label">Budget Limit (Rs.)</label>
+                <input type="number" class="form-input" id="settingsBudget" placeholder="10000">
+              </div>
+              <div style="margin-top:12px">
+                <button class="btn btn-primary btn-sm" onclick="saveBudget()">Save Budget</button>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">Session</span></div>
+            <div class="card-body">
+              <button class="btn btn-danger" onclick="logout()">Logout</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModalIfOutside(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">Add Expense</span>
+      <button class="modal-close" onclick="closeModal()">X</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Amount (Rs.)</label>
+          <input type="number" class="form-input" id="expAmount" placeholder="0.00">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Date</label>
+          <input type="date" class="form-input" id="expDate">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <input type="text" class="form-input" id="expDesc" placeholder="What did you spend on?">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Category</label>
+        <select class="form-select" id="expCat">
+          <option value="1">Food</option>
+          <option value="2">Transport</option>
+          <option value="3">Shopping</option>
+          <option value="4">Bills</option>
+          <option value="5">Education</option>
+          <option value="6">Health</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary btn-sm" onclick="saveExpense()">Save Expense</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script src="/js/app.js"></script>
+</body>
+</html>
