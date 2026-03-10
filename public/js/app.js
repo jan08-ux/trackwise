@@ -18,13 +18,18 @@ let editingId = null;
   try {
     const r = await fetch('/api/auth/me', { credentials: 'include' });
     const d = await r.json();
-    if (!d.loggedIn) { window.location.href = '/login.html'; return; }
+    if (!d.loggedIn) {
+      window.location.replace('/login.html');
+      return;
+    }
     const initials = d.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2);
     document.getElementById('userNameEl').textContent = d.name;
     document.getElementById('avatarEl').textContent   = initials;
     document.getElementById('expDate').value = new Date().toISOString().slice(0,10);
     await loadDashboard();
-   } catch(e) { console.error('Auth error:', e); }
+  } catch(e) {
+    console.error('Auth error:', e);
+  }
 })();
 
 async function logout() {
@@ -40,16 +45,77 @@ async function api(url, opts={}) {
 
 // Dashboard
 async function loadDashboard() {
-  const [monthly, cats, budget, insights, expenses] = await Promise.all([
-    api('/api/analytics/monthly'),
-    api('/api/analytics/categories'),
-    api('/api/analytics/budget-status'),
-    api('/api/analytics/insights'),
-    api('/api/expenses'),
-  ]);
-  if (!monthly) return;
-  allExpenses = expenses || [];
-  renderStats(monthly, cats, budget, allExpenses);
+  const expenses = await api('/api/expenses');
+  if (!expenses) return;
+  allExpenses = expenses;
+
+  // Calculate stats directly from expenses
+  const now = new Date();
+  const curMonth = now.getMonth() + 1;
+  const curYear  = now.getFullYear();
+
+  const thisMonth = expenses.filter(e => {
+    const d = new Date(e.expense_date);
+    return d.getMonth()+1 === curMonth && d.getFullYear() === curYear;
+  });
+
+  const total = thisMonth.reduce((s, e) => s + parseFloat(e.amount), 0);
+
+  // Category totals
+  const catMap = {};
+  thisMonth.forEach(e => {
+    catMap[e.category_name] = (catMap[e.category_name] || 0) + parseFloat(e.amount);
+  });
+  const cats = Object.entries(catMap).map(([category_name, total]) => ({ category_name, total }))
+    .sort((a,b) => b.total - a.total);
+
+  // Monthly totals for chart
+  const monthMap = {};
+  expenses.forEach(e => {
+    const d = new Date(e.expense_date);
+    const key = (d.getFullYear()) + '-' + String(d.getMonth()+1).padStart(2,'0');
+    const label = d.toLocaleString('default',{month:'short'}) + ' ' + d.getFullYear();
+    if (!monthMap[key]) monthMap[key] = { month_label: label, yr: d.getFullYear(), mo: d.getMonth()+1, total: 0 };
+    monthMap[key].total += parseFloat(e.amount);
+  });
+  const monthly = Object.values(monthMap).sort((a,b) => a.yr - b.yr || a.mo - b.mo);
+
+  // Budget
+  const budget = await api('/api/analytics/budget-status');
+  const insights = await api('/api/analytics/insights');
+
+  // Render
+  document.getElementById('statTotal').textContent = total.toLocaleString('en-IN');
+  document.getElementById('statCount').textContent = thisMonth.length;
+
+  if (budget && budget.limit) {
+    const rem = Math.max(0, budget.limit - total);
+    document.getElementById('statRemaining').textContent = rem.toLocaleString('en-IN');
+    document.getElementById('statBudgetSub').textContent = 'of Rs.' + parseFloat(budget.limit).toLocaleString('en-IN') + ' limit';
+  }
+
+  if (cats.length) {
+    document.getElementById('statTopCat').textContent = cats[0].category_name;
+    document.getElementById('statTopAmt').textContent = 'Rs.' + parseFloat(cats[0].total).toLocaleString('en-IN');
+  }
+
+  // Month over month
+  if (monthly.length >= 2) {
+    const prev = monthly[monthly.length-2];
+    const last = monthly[monthly.length-1];
+    if (prev && prev.total > 0) {
+      const chg = Math.round((last.total - prev.total) / prev.total * 100);
+      document.getElementById('statTotalSub').innerHTML =
+        '<span class="' + (chg >= 0 ? 'up' : 'down') + '">' + (chg >= 0 ? '+' : '') + chg + '%</span>' +
+        ' <span class="neutral">vs last month</span>';
+    }
+  } else {
+    document.getElementById('statTotalSub').textContent = 'No comparison data';
+  }
+
+  document.getElementById('pageSub').textContent =
+    now.toLocaleString('default',{month:'long'}) + ' ' + now.getFullYear() + ' - Financial Overview';
+
   renderBudget(budget);
   renderRecentTx(allExpenses.slice(0, 6));
   renderInsights(insights);
@@ -58,14 +124,13 @@ async function loadDashboard() {
 
 function renderStats(monthly, cats, budget, expenses) {
   const now   = new Date();
-  const cur   = monthly.find(m => m.mo == now.getMonth()+1 && m.yr == now.getFullYear());
+  // Use last entry in monthly array as current, or find by month/year
+  const cur   = monthly.find(m => m.mo == now.getMonth()+1 && m.yr == now.getFullYear())
+              || monthly[monthly.length - 1];
   const total = cur ? parseFloat(cur.total) : 0;
 
   document.getElementById('statTotal').textContent = total.toLocaleString('en-IN');
-  document.getElementById('statCount').textContent = expenses.filter(e => {
-    const d = new Date(e.expense_date);
-    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-  }).length;
+  document.getElementById('statCount').textContent = expenses.length;
 
   if (budget && budget.limit) {
     const rem = Math.max(0, budget.limit - total);
